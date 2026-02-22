@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Path of Ebota: Peka Revenge</title>
+    <style>
+        body { margin: 0; background: #020202; overflow: hidden; font-family: 'serif'; color: #eee; }
+        canvas { display: block; }
+        #menu, #death-screen, #ban-screen { position: absolute; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; text-align: center; }
+        .char-card { background: #111; border: 2px solid #3d2b1f; padding: 20px; margin: 10px; width: 340px; cursor: pointer; transition: 0.3s; }
+        .char-card:hover { border-color: #af6025; background: #251a14; box-shadow: 0 0 15px #af6025; }
+        .quote { color: #0f0; font-size: 0.85em; font-style: italic; margin-top: 10px; border-top: 1px solid #444; padding-top: 8px; }
+        #ui-top { position: absolute; top: 15px; width: 100%; text-align:center; font-size: 22px; color: #edc412; z-index: 500; pointer-events: none; }
+        #status-rank { color: #888; font-size: 0.7em; display: block; margin-top: 5px; font-style: italic; }
+        #btn-logout { position: absolute; top: 15px; right: 20px; padding: 10px 20px; background: #222; border: 1px solid #555; color: #aaa; cursor: pointer; z-index: 1100; display: none; }
+        .btn { background: #3d2b1f; color: #af6025; border: 1px solid #af6025; padding: 10px 20px; margin: 5px; cursor: pointer; font-size: 16px; text-decoration: none; display: inline-block; }
+        .orb-ui { position: absolute; bottom: 20px; width: 130px; height: 130px; border-radius: 50%; border: 3px solid #333; overflow: hidden; pointer-events: none; }
+        #life-orb { left: 30px; } #es-orb { right: 30px; }
+        .fill { position: absolute; bottom: 0; width: 100%; transition: height 0.3s; }
+        #life-fill { background: #a00; height: 100%; } #es-fill { background: #44a; height: 100%; }
+        #global-chat { position: absolute; bottom: 160px; left: 20px; width: 240px; height: 110px; background: rgba(0,0,0,0.7); font-size: 11px; padding: 5px; overflow: hidden; border-left: 2px solid #af6025; pointer-events: none; display: none; flex-direction: column-reverse; }
+        .chat-msg { margin: 2px 0; line-height: 1.2; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .loot-item { position: absolute; padding: 2px 6px; background: #000; border: 1px solid #fff; font-size: 11px; transform: translate(-50%, -50%); z-index: 100; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-top">
+        Wealth: <span id="score">0</span> C
+        <span id="status-rank">Статус: Голыш</span>
+    </div>
+    <button id="btn-logout" onclick="location.reload()">LOG OUT (Esc)</button>
+
+    <div id="menu">
+        <h1 style="color: #af6025; font-size: 48px; margin-bottom: 5px; letter-spacing: 2px;">PATH OF EBOTA</h1>
+        <p style="color: #666; font-size: 14px; margin-bottom: 25px; font-style: italic;">лучше чем пое 2</p>
+        <div class="char-card" onclick="start('champ')">
+            <h2 style="color: #d4af37">Champion</h2><p>Sunder: Slow Heavy Waves</p>
+            <div class="quote">«Да не будут фейсбрейкеры стоить 2 зеркала»</div>
+        </div>
+        <div class="char-card" onclick="start('necro')">
+            <h2 style="color: #88f">Necromancer</h2><p>Elefanto RF: Passive Burn</p>
+            <div class="quote">«Слон Elefanto — лучший билд за 1 алхимку»</div>
+        </div>
+        <div class="char-card" onclick="start('pf')">
+            <h2 style="color: #2f2">Pathfinder</h2><p>Penance Brand: Fast Pulses</p>
+            <div class="quote">«Кнопки жмем, банки пьем, за секунду карту шьем»</div>
+        </div>
+        <div style="margin-top: 20px;">
+            <a href="https://www.twitch.tv" target="_blank" class="btn">Стрим Poebota 📺</a>
+            <button class="btn" onclick="alert('Да вы задолбали, я сам билды придумываю :( ')">Украсть билд с БиляБиля 🇨🇳</button>
+        </div>
+    </div>
+
+    <div id="death-screen" style="display:none">
+        <h1 style="color: #f00; font-size: 48px;">YOU DIED</h1>
+        <h2 id="final-score" style="color: #edc412">Wealth: 0 C</h2>
+        <button class="btn" onclick="location.reload()">В меню выбора</button>
+        <button class="btn" style="border-color: #f0f; color: #f0f" onclick="showBan()">Обменять на питсу 🍕</button>
+    </div>
+
+    <div id="ban-screen" style="display:none">
+        <h1 style="color: #ff0">ВАС ЗАБАНИЛИ ЗА РМТ</h1>
+        <p>Крис Уилсон лично аннулировал ваш аккаунт.</p>
+        <button class="btn" onclick="location.reload()">Вернуться и покаяться</button>
+    </div>
+
+    <div id="life-orb" class="orb-ui"><div id="life-fill" class="fill"></div></div>
+    <div id="es-orb" class="orb-ui"><div id="es-fill" class="fill"></div></div>
+    <div id="global-chat"></div>
+    <div id="loot-layer"></div>
+    <canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+
+let state = { running: false, class: '', hp: 100, es: 80, score: 0, difficulty: 1, startTime: 0, lastAtk: 0, lastDelve: 0, delveDepth: 1300, player: {x:0, y:0} };
+const enemies = [], projs = [], loots = [], brands = [], minions = [];
+const rareNames = ["Гнилоуст", "Костегрыз", "Душегуб", "Смертобрюх", "Трупоед", "Мерзоух", "Кровохлеб"];
+const chatQuotes = [
+    "<font color='#af6025'>[G1]</font> <font color='#88f'>Glad77:</font> WTS Headhunter 50 div",
+    "<font color='#af6025'>[G1]</font> <font color='#eee'>Exile_99:</font> Le Toucan has arrived 🐦",
+    "<font color='#af6025'>[G1]</font> <font color='#0f0'>RMT_Bot:</font> cheap exalts on sc-pizza.com",
+    "<font color='#af6025'>[G1]</font> <font color='#eee'>Chris_W:</font> Hi, I'm Chris Wilson.",
+    "<font color='#af6025'>[G1]</font> <font color='#f00'>Bota_Fan:</font> Опять ваншот через 7 аукцион..."
+];
+
+function getRank(score) {
+    if (score < 1) return "Статус: Голыш";
+    if (score < 10) return "Статус: Фармер";
+    if (score < 50) return "Статус: РМТ-барон";
+    if (score < 200) return "Статус: Владелец Зеркала";
+    return "Статус: Любимчик Криса";
+}
+
+function playLootSound(val) {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.frequency.setValueAtTime(val > 10 ? 950 : 440, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.6);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+    } catch(e) {}
+}
+
+function start(cls) {
+    state.class = cls; state.running = true; state.startTime = Date.now(); state.lastDelve = Date.now();
+    state.player = { x: canvas.width/2, y: canvas.height/2 };
+    document.getElementById('menu').style.display = 'none';
+    document.getElementById('btn-logout').style.display = 'block';
+    document.getElementById('global-chat').style.display = 'flex';
+    if(cls === 'necro') minions.push({ x: state.player.x, y: state.player.y, name: "Elefanto" });
+    loop(0);
+}
+
+function showBan() {
+    document.getElementById('death-screen').style.display = 'none';
+    document.getElementById('ban-screen').style.display = 'flex';
+}
+
+function addChatMsg(customMsg) {
+    const chat = document.getElementById('global-chat');
+    const msg = document.createElement('div');
+    msg.className = 'chat-msg';
+    msg.innerHTML = customMsg || chatQuotes[Math.floor(Math.random()*chatQuotes.length)];
+    chat.prepend(msg);
+    if(chat.childNodes.length > 6) chat.removeChild(chat.lastChild);
+}
+
+function update(t) {
+    if(!state.running) return;
+    let now = Date.now();
+    state.difficulty = 1 + ((now - state.startTime) / 55000);
+    if(Math.random() < 0.005) addChatMsg();
+
+    if(now - state.startTime > 5000 && now - state.lastDelve > 12000) {
+        state.delveDepth += 100;
+        addChatMsg(`<font color='#edc412'>StinkyShaftMiner has reached depth ${state.delveDepth}!</font>`);
+        state.lastDelve = now;
+    }
+
+    let dx = (window.mx || state.player.x) - state.player.x, dy = (window.my || state.player.y) - state.player.y, d = Math.hypot(dx, dy);
+    if(d > 5) { state.player.x += dx/d*4.1; state.player.y += dy/d*4.1; }
+
+    let target = null, minDist = 450;
+    enemies.forEach(e => { let dist = Math.hypot(e.x-state.player.x, e.y-state.player.y); if(dist < minDist) { minDist = dist; target = e; } });
+
+    if(t - state.lastAtk > (state.class === 'pf' ? 220 : 950)) {
+        if(state.class === 'champ' && target) {
+            projs.push({x: state.player.x, y: state.player.y, ang: Math.atan2(target.y-state.player.y, target.x-state.player.x), type: 'sunder', life: 25, scale: 1});
+            state.lastAtk = t;
+        }
+        if(state.class === 'pf' && target) { brands.push({target: target, life: 60}); state.lastAtk = t; }
+    }
+
+    minions.forEach(m => {
+        m.x += (state.player.x - m.x)*0.06; m.y += (state.player.y - m.y)*0.06;
+        enemies.forEach(e => { if(Math.hypot(e.x-m.x, e.y-m.y) < 110) e.hp -= 0.16; });
+    });
+
+    brands.forEach((b, i) => {
+        if(!enemies.includes(b.target) || b.life-- <= 0) {
+            projs.push({x: b.target.x, y: b.target.y, type: 'explosion', life: 10});
+            enemies.forEach(e => { if(Math.hypot(e.x-b.target.x, e.y-b.target.y) < 70) e.hp -= 1.6; });
+            brands.splice(i, 1);
+        } else b.target.hp -= 0.05;
+    });
+
+    if(Math.random() < 0.05) {
+        let a = Math.random()*Math.PI*2, r = Math.random();
+        let e = { x: state.player.x + Math.cos(a)*750, y: state.player.y + Math.sin(a)*750, hp: 5*state.difficulty, dmg: 0.4*state.difficulty, rarity: 'white', speed: 2.2, color: '#353' };
+        if(r < 0.015) { e.hp *= 4.5; e.color = '#ff0'; e.aura = 160; e.rarity = 'yellow'; e.name = rareNames[Math.floor(Math.random()*rareNames.length)]; }
+        else if(r < 0.12) { e.hp *= 1.8; e.color = '#88f'; e.rarity = 'blue'; }
+        enemies.push(e);
+    }
+
+    enemies.forEach((e, i) => {
+        let b = 1; enemies.forEach(o => { if(o.aura && Math.hypot(e.x-o.x, e.y-o.y) < o.aura) b = 1.65; });
+        let ed = Math.hypot(state.player.x-e.x, state.player.y-e.y);
+        e.x += (state.player.x-e.x)/ed * e.speed * b; e.y += (state.player.y-e.y)/ed * e.speed * b;
+        if(ed < 22) { if(state.es > 0) state.es -= e.dmg; else state.hp -= e.dmg; }
+        if(e.hp <= 0) {
+            const chance = Math.random();
+            let drop = null;
+            if(chance < 0.003) drop = {name: 'Divine Orb', val: 200, color: '#0ff'};
+            else if(chance < 0.009) drop = {name: 'Exalted Orb', val: 15, color: '#edc412'};
+            else if(chance < 0.045) drop = {name: 'Chaos Orb', val: 1, color: '#edc412'};
+            else if(chance < 0.13) drop = {name: 'Orb of Alchemy', val: 0.5, color: '#fff'};
+            if(drop) {
+                const id = Math.random(); loots.push({x: e.x, y: e.y, val: drop.val, id});
+                const d = document.createElement('div'); d.id = 'l-'+id; d.className = 'loot-item';
+                d.style.left = e.x+'px'; d.style.top = e.y+'px'; d.style.borderColor = drop.color; d.innerText = drop.name;
+                document.getElementById('loot-layer').appendChild(d);
+                if(drop.val >= 1) playLootSound(drop.val);
+            }
+            enemies.splice(i, 1);
+        }
+    });
+
+    projs.forEach((p, i) => {
+        if(p.type === 'sunder') { p.x += Math.cos(p.ang)*6.5; p.y += Math.sin(p.ang)*6.5; p.scale += 0.16; enemies.forEach(e => { if(Math.hypot(e.x-p.x, e.y-p.y) < 48*p.scale) e.hp -= 0.68; }); }
+        if(p.life-- <= 0) projs.splice(i, 1);
+    });
+
+    loots.forEach((l, i) => { if(Math.hypot(state.player.x-l.x, state.player.y-l.y) < 45) { 
+        state.score += l.val; document.getElementById('score').innerText = state.score.toFixed(1);
+        document.getElementById('status-rank').innerText = getRank(state.score);
+        document.getElementById('l-'+l.id)?.remove(); loots.splice(i, 1);
+    }});
+
+    if(state.es < 80) state.es += 0.08;
+    document.getElementById('life-fill').style.height = state.hp + '%';
+    document.getElementById('es-fill').style.height = (state.es/80*100) + '%';
+    if(state.hp <= 0) { state.running = false; document.getElementById('death-screen').style.display = 'flex'; document.getElementById('final-score').innerText = "Wealth: " + state.score.toFixed(1) + " C"; }
+}
+
+function draw() {
+    ctx.fillStyle = '#050505'; ctx.fillRect(0,0,canvas.width, canvas.height);
+    enemies.forEach(e => {
+        if(e.aura) { ctx.strokeStyle = 'rgba(255,0,0,0.3)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, e.aura, 0, Math.PI*2); ctx.stroke(); }
+        ctx.fillStyle = e.color; ctx.beginPath(); ctx.arc(e.x, e.y, 16, 0, Math.PI*2); ctx.fill();
+        if(e.rarity !== 'white') { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); }
+        if(e.name) { ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center'; ctx.fillText(e.name, e.x, e.y - 22); }
+    });
+    projs.forEach(p => {
+        ctx.fillStyle = p.type === 'sunder' ? `rgba(139, 69, 19, ${p.life/25})` : "rgba(255, 255, 100, 0.4)";
+        ctx.beginPath(); if(p.type === 'sunder') { ctx.arc(p.x, p.y, 45*p.scale, p.ang-0.6, p.ang+0.6); ctx.lineTo(p.x, p.y); } else ctx.arc(p.x, p.y, 80*(1-p.life/10), 0, Math.PI*2); ctx.fill();
+    });
+    brands.forEach(b => {
+        ctx.fillStyle = '#ff0'; ctx.shadowBlur = 10; ctx.shadowColor = '#ff0';
+        ctx.beginPath(); ctx.arc(b.target.x, b.target.y - 35, 6, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+    });
+    minions.forEach(m => {
+        ctx.strokeStyle = '#f50'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(m.x, m.y, 110, 0, Math.PI*2); ctx.stroke();
+        ctx.fillStyle = '#444'; ctx.beginPath(); ctx.arc(m.x, m.y, 28, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#eee'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.fillText(m.name, m.x, m.y - 38);
+    });
+    // Draw PEKAFACE
+    ctx.fillStyle = '#ff0'; ctx.beginPath(); ctx.arc(state.player.x, state.player.y, 18, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(state.player.x-6, state.player.y-4, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(state.player.x+6, state.player.y-4, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(state.player.x, state.player.y+5, 7, 0.2, Math.PI-0.2); ctx.stroke();
+}
+
+window.onmousemove = e => { window.mx = e.clientX; window.my = e.clientY; };
+function loop(t) { if(state.running) { update(t); draw(); requestAnimationFrame(loop); } }
+window.onkeydown = e => { if(e.key === 'Escape') location.reload(); };
+</script>
+</body>
+</html>
