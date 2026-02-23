@@ -2,52 +2,165 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Path of Ebota</title>
+    <title>Path of Ebota v1.048</title>
     <style>
         body { margin: 0; background: #020202; overflow: hidden; font-family: 'serif'; color: #eee; }
         canvas { display: block; }
-        #menu, #death-screen, #ban-screen { position: absolute; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; text-align: center; }
+        #menu, #ban-screen { position: absolute; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; text-align: center; }
+
+        /* ЭКРАН СМЕРТИ */
+        #death-screen {
+            position: absolute; inset: 0;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 1000; text-align: center;
+            background: radial-gradient(ellipse at center, rgba(60,0,0,0.92) 0%, rgba(0,0,0,0.98) 100%);
+        }
+        #death-title {
+            font-size: 72px; color: #cc0000; letter-spacing: 8px;
+            text-shadow: 0 0 30px #ff0000, 0 0 60px #880000;
+            animation: deathDrop 0.6s cubic-bezier(.2,1.4,.4,1) both;
+            font-family: serif;
+        }
+        @keyframes deathDrop {
+            from { opacity: 0; transform: translateY(-60px) scale(1.2); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        #death-class {
+            color: #af6025; font-size: 20px; letter-spacing: 3px;
+            animation: fadeIn 0.4s 0.5s both;
+        }
+        #death-stat-block {
+            margin: 18px 0 24px;
+            border: 1px solid #5a2a00;
+            background: rgba(0,0,0,0.6);
+            padding: 18px 40px;
+            min-width: 320px;
+            box-shadow: 0 0 20px rgba(180,60,0,0.2), inset 0 0 20px rgba(0,0,0,0.5);
+            animation: fadeIn 0.4s 0.7s both;
+        }
+        #death-stat-block .stat-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 5px 0; border-bottom: 1px solid rgba(90,42,0,0.4);
+            font-size: 15px; color: #ccc;
+        }
+        #death-stat-block .stat-row:last-child { border-bottom: none; }
+        #death-stat-block .stat-label { color: #888; margin-right: 20px; }
+        #death-stat-block .stat-val { color: #edc412; font-weight: bold; }
+        #death-wealth { font-size: 22px; color: #edc412; margin-bottom: 14px; animation: fadeIn 0.4s 0.6s both; }
+        #death-buttons { animation: fadeIn 0.4s 1s both; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Vignette */
+        #vignette {
+            position: absolute; inset: 0; pointer-events: none; z-index: 999;
+            background: radial-gradient(ellipse at center, transparent 40%, rgba(120,0,0,0) 100%);
+            transition: background 1s;
+        }
+        #vignette.dying {
+            background: radial-gradient(ellipse at center, transparent 20%, rgba(150,0,0,0.7) 100%);
+        }
         .char-card { background: #111; border: 2px solid #3d2b1f; padding: 20px; margin: 10px; width: 340px; cursor: pointer; transition: 0.3s; }
         .char-card:hover { border-color: #af6025; background: #251a14; box-shadow: 0 0 15px #af6025; }
         .quote { color: #0f0; font-size: 0.85em; font-style: italic; margin-top: 10px; border-top: 1px solid #444; padding-top: 8px; }
         #ui-top { position: absolute; top: 15px; width: 100%; text-align:center; font-size: 24px; color: #edc412; z-index: 500; pointer-events: none; }
         #status-rank { color: #888; font-size: 0.7em; display: block; margin-top: 5px; font-style: italic; }
-        #btn-logout { position: absolute; top: 15px; right: 20px; padding: 10px 20px; background: #222; border: 1px solid #555; color: #aaa; cursor: pointer; z-index: 1100; display: none; }
+        #btn-logout { position: absolute; top: 15px; right: 20px; padding: 6px 14px; background: #222; border: 1px solid #555; color: #aaa; cursor: pointer; z-index: 1100; display: none; }
         .btn { background: #3d2b1f; color: #af6025; border: 1px solid #af6025; padding: 10px 20px; margin: 5px; cursor: pointer; font-size: 16px; text-decoration: none; display: inline-block; }
         
-        /* Сферы в стиле PoE */
-        .orb-ui { position: absolute; bottom: 20px; width: 130px; height: 130px; border-radius: 50%; border: 4px solid #333; overflow: hidden; pointer-events: none; background: #000; }
-        #life-orb { left: 30px; } 
-        #mana-orb { right: 30px; border-color: #114; }
-        
-        .fill { position: absolute; bottom: 0; width: 100%; }
-        #life-fill { background: radial-gradient(circle at 50% 20%, #f00, #300); height: 100%; transition: height 0.3s; }
-        #es-fill { background: rgba(180, 220, 255, 0.8); border-top: 2px solid #fff; bottom: 0; height: 80%; transition: height 0.3s; z-index: 2; box-shadow: 0 -5px 15px rgba(255,255,255,0.3); }
-        #mana-fill { background: radial-gradient(circle at 50% 20%, #44f, #113); height: 100%; }
+        /* СФЕРЫ v1.4 - Жидкость снизу вверх */
+        .orb-ui {
+            position: absolute; bottom: 20px;
+            width: 130px; height: 130px;
+            border-radius: 50%;
+            overflow: hidden;
+            pointer-events: none;
+            border: 3px solid #555;
+        }
+        /* ES позади HP — смещён вправо, z-index ниже */
+        #es-orb  { left: 30px; border-color: #226; background: #00001a; z-index: 1; transform: translateX(10px); }
+        #life-orb { left: 30px; border-color: #622; background: #1a0000; z-index: 2; }
+        #mana-orb { right: 30px; border-color: #226; background: #00001a; z-index: 1; }
 
-        #global-chat { position: absolute; bottom: 160px; left: 20px; width: 240px; height: 110px; background: rgba(0,0,0,0.7); font-size: 11px; padding: 5px; overflow: hidden; border-left: 2px solid #af6025; pointer-events: none; display: none; flex-direction: column-reverse; }
-        .chat-msg { margin: 2px 0; line-height: 1.2; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .fill {
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 100%;
+            transition: height 0.3s ease;
+        }
+
+        #life-fill {
+            background: radial-gradient(ellipse at 50% 30%, #f44, #900, #300);
+            height: 100%;
+        }
+
+        #es-fill {
+            background: radial-gradient(ellipse at 50% 30%, #88f, #44a, #113);
+            height: 100%;
+        }
+
+        .orb-ui::after {
+            content: '';
+            position: absolute;
+            top: 8px; left: 20px;
+            width: 45%; height: 35%;
+            background: radial-gradient(ellipse, rgba(255,255,255,0.25), transparent);
+            border-radius: 50%;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        #mana-fill {
+            background: radial-gradient(ellipse at 50% 30%, #88f, #44a, #113);
+            height: 100%;
+        }
+
+        /* LATENCY */
+        #latency-widget {
+            position: absolute; top: 15px; right: 130px;
+            display: none; align-items: center; gap: 10px;
+            z-index: 1100; pointer-events: none;
+        }
+        #latency-text {
+            text-align: left; line-height: 1.2;
+            font-family: sans-serif;
+        }
+        #latency-label { font-size: 10px; color: #888; letter-spacing: 1px; }
+        #latency-ms { font-size: 20px; color: #fff; font-weight: bold; }
+        #latency-canvas { width: 120px; height: 40px; }
+        #global-chat { position: absolute; bottom: 180px; left: 20px; width: 400px; height: 200px; background: rgba(0,0,0,0.7); font-size: 14px; padding: 10px; overflow: hidden; border-left: 2px solid #af6025; pointer-events: none; display: none; flex-direction: column-reverse; }
+        .chat-msg { margin: 4px 0; line-height: 1.2; border-bottom: 1px solid rgba(255,255,255,0.05); }
         .loot-item { position: absolute; padding: 2px 6px; background: #000; border: 1px solid #fff; font-size: 11px; transform: translate(-50%, -50%); z-index: 100; pointer-events: none; }
     </style>
 </head>
 <body>
 
     <div id="ui-top">
-        Wealth: <span id="score">0</span> C
+        Wealth: <span id="score">0</span> C &nbsp;|&nbsp; Kills: <span id="kills">0</span> &nbsp;|&nbsp; <span id="timer">00:00</span>
         <span id="status-rank">Статус: Голыш</span>
     </div>
     <button id="btn-logout" onclick="location.reload()">LOG OUT (Esc)</button>
+    <div id="latency-widget">
+        <div id="latency-text">
+            <div id="latency-label">LATENCY</div>
+            <div id="latency-ms">70 MS</div>
+        </div>
+        <canvas id="latency-canvas" width="120" height="40"></canvas>
+    </div>
 
     <div id="menu">
-        <h1 style="color: #af6025; font-size: 48px; margin-bottom: 5px; letter-spacing: 2px;">PATH OF EBOTA</h1>
-        <p style="color: #666; font-size: 14px; margin-bottom: 25px; font-style: italic;">лучше чем пое 2</p>
+        <canvas id="menu-bg" style="position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;"></canvas>
+        <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;">
+        <h1 style="color: #af6025; font-size: 48px; margin-bottom: 5px; letter-spacing: 2px; text-shadow: 0 0 30px #af602588;">PATH OF EBOTA</h1>
+        <p style="color: #666; font-size: 14px; margin-bottom: 25px; font-style: italic;">лучше чем пое 2 | v1.048</p>
         <div class="char-card" onclick="start('champ')">
             <h2 style="color: #d4af37">Champion</h2><p>Sunder: Slow Heavy Waves</p>
             <div class="quote">«Да не будут фейсбрейкеры стоить 2 зеркала»</div>
         </div>
         <div class="char-card" onclick="start('necro')">
             <h2 style="color: #88f">Necromancer</h2><p>Elefanto RF: Passive Burn</p>
-            <div class="quote">«Слон Elefanto — лучший билд за 1 алхимку»</div>
+            <div class="quote">«Слон Elefanto — лучший билд за дивайн»</div>
         </div>
         <div class="char-card" onclick="start('pf')">
             <h2 style="color: #2f2">Pathfinder</h2><p>Penance Brand: Fast Pulses</p>
@@ -57,13 +170,24 @@
             <a href="https://www.twitch.tv/pathofexilebota" target="_blank" class="btn">Стрим Poebota 📺</a>
             <button class="btn" onclick="alert('Да вы задолбали, я сам билды придумываю :( ')">Украсть билд с БиляБиля</button>
         </div>
+        </div>
     </div>
 
-    <div id="death-screen" style="display:none">
-        <h1 style="color: #f00; font-size: 48px;">YOU DIED</h1>
-        <h2 id="final-score" style="color: #edc412">Wealth: 0 C</h2>
-        <button class="btn" onclick="location.reload()">В меню выбора</button>
-        <button class="btn" style="border-color: #f0f; color: #f0f" onclick="showBan()">Обменять на питсу 🍕</button>
+    <div id="vignette"></div>
+
+    <div id="death-screen">
+        <div id="death-title">YOU DIED</div>
+        <div id="death-class"></div>
+        <div id="death-wealth"></div>
+        <div id="death-stat-block">
+            <div class="stat-row"><span class="stat-label">⏱ Время</span><span class="stat-val" id="final-time">00:00</span></div>
+            <div class="stat-row"><span class="stat-label">☠ Убито</span><span class="stat-val" id="final-kills">0</span></div>
+            <div class="stat-row"><span class="stat-label">💰 Дивайны/час</span><span class="stat-val" id="final-dph">0</span></div>
+        </div>
+        <div id="death-buttons">
+            <button class="btn" onclick="location.reload()">В меню выбора</button>
+            <button class="btn" style="border-color: #f0f; color: #f0f" onclick="showBan()">Обменять на питсу 🍕</button>
+        </div>
     </div>
 
     <div id="ban-screen" style="display:none">
@@ -72,10 +196,12 @@
         <button class="btn" onclick="location.reload()">Вернуться и покаяться</button>
     </div>
 
-    <!-- Сферы -->
+    <!-- ES сфера позади HP, чуть выглядывает справа -->
+    <div id="es-orb" class="orb-ui">
+        <div id="es-fill" class="fill"></div>
+    </div>
     <div id="life-orb" class="orb-ui">
         <div id="life-fill" class="fill"></div>
-        <div id="es-fill" class="fill"></div>
     </div>
     <div id="mana-orb" class="orb-ui">
         <div id="mana-fill" class="fill"></div>
@@ -89,9 +215,22 @@
 const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
-let state = { running: false, class: '', hp: 100, es: 80, score: 0, difficulty: 1, spawnBase: 0.05, startTime: 0, lastAtk: 0, lastDelve: 0, delveDepth: 1300, player: {x:0, y:0} };
-const enemies = [], projs = [], loots = [], brands = [], minions = [];
+let state = { running: false, class: '', hp: 100, es: 80, score: 0, difficulty: 1, spawnBase: 0.05, startTime: 0, lastAtk: 0, lastDelve: 0, delveDepth: 1300, player: {x:0, y:0}, kills: 0, lastBoss: 0 };
+const enemies = [], projs = [], loots = [], brands = [], minions = [], bloodParticles = [];
+
+// Декорации фона — генерируются один раз
+const WORLD_TILE = 2000;
+const decorations = Array.from({length: 160}, () => ({
+    wx: (Math.random() - 0.5) * WORLD_TILE,
+    wy: (Math.random() - 0.5) * WORLD_TILE,
+    type: (() => { const r = Math.random(); return r < 0.4 ? 'rock' : r < 0.65 ? 'column' : r < 0.85 ? 'bones' : 'crystal'; })(),
+    size: 4 + Math.random() * 16,
+    angle: Math.random() * Math.PI * 2,
+    seed: Math.random()
+}));
 const rareNames = ["Гнилоуст", "Костегрыз", "Душегуб", "Смертобрюх", "Трупоед", "Мерзоух", "Кровохлеб"];
+const bossNames = ["Кровавый Ваал", "Шакири Неусыпный", "Мать Гнили", "Граспер Безликий", "Тень Шепчущего"];
+const mobTypes = ['zombie', 'skeleton', 'beast', 'specter'];
 const chatQuotes = [
     "<font color='#af6025'>[G1]</font> <font color='#88f'>Glad77:</font> WTS Headhunter 50 div",
     "<font color='#af6025'>[G1]</font> <font color='#eee'>Exile_99:</font> Le Toucan has arrived 🐦",
@@ -100,28 +239,123 @@ const chatQuotes = [
     "<font color='#af6025'>[G1]</font> <font color='#f00'>Bota_Fan:</font> Опять ваншот...",
     "<font color='#af6025'>[G1]</font> <font color='#f00'>Fartgun:</font> А у зизарана уже тушка на взрывы",
     "<font color='#af6025'>[G1]</font> <font color='#f00'>Sasawot:</font> WW ЗАВОЗИК!!!",
-    "<font color='#af6025'>[G1]</font> <font color='#f00'>Kseniya_soda:</font> Мальчики, я подрубила"
+    "<font color='#af6025'>[G1]</font> <font color='#f00'>Kseniya_soda:</font> Мальчики, я подрубила",
+    "<font color='#af6025'>[G1]</font> <font color='#eee'>NeverSink:</font> фильтр обновлён, скачайте",
+    "<font color='#af6025'>[G1]</font> <font color='#88f'>Zizaran:</font> boys we're speedrunning this",
+    "<font color='#af6025'>[G1]</font> <font color='#eee'>Pohx:</font> RF — лучший билд всех времён",
+    "<font color='#af6025'>[G1]</font> <font color='#f00'>SadExile:</font> когда некст лига уже...",
+    "<font color='#af6025'>[G1]</font> <font color='#0f0'>TradeBot:</font> WTB mirror 1:1 divine lol",
+    "<font color='#af6025'>[G1]</font> <font color='#eee'>Steelmage:</font> SSF или не считается",
+    "<font color='#af6025'>[G1]</font> <font color='#fa0'>GGG_Rep:</font> это не баг, это фича",
+    "<font color='#af6025'>[G1]</font> <font color='#f00'>Exile_420:</font> лаги или я умер?",
+    "<font color='#af6025'>[G1]</font> <font color='#88f'>Alkaizer:</font> карта за 18 секунд, норм",
+    "<font color='#af6025'>[G1]</font> <font color='#eee'>MomsBasement:</font> хедхантер дропнул, плачу",
+    "<font color='#af6025'>[G1]</font> <font color='#f00'>RIP_HC:</font> пинг 200, смерть законная",
+    "<font color='#af6025'>[G1]</font> <font color='#0f0'>SpammerPro:</font> d4 лучше lulw",
+    "<font color='#af6025'>[G1]</font> <font color='#eee'>ProTrader:</font> WTS душа Криса 500 div",
+    "<font color='#af6025'>[G1]</font> <font color='#fa0'>GGG_Rep:</font> некст лига — контент для всех",
+    "<font color='#af6025'>[G1]</font> <font color='#88f'>Mathil:</font> этот билд не мета, я просто хорош",
+    "<font color='#af6025'>[G1]</font> <font color='#f00'>CryingExile:</font> 400 часов и первый дивайн...",
+    "<font color='#af6025'>[G1]</font> <font color='#eee'>TrueExile:</font> PoE2 убила PoE1. Обсуждаем",
+    "<font color='#af6025'>[G1]</font> <font color='#0f0'>RMT_Bot2:</font> 100 chaos = 1$ dm me",
+    "<font color='#af6025'>[G1]</font> <font color='#88f'>Lagmaster:</font> сервер EU или желе?",
+    "<font color='#af6025'>[G1]</font> <font color='#fa0'>Sanctum_Guy:</font> sanctum комнату скипнул, нормик",
+    "<font color='#af6025'>[G1]</font> <font color='#eee'>DeepDelver:</font> глубина 3000, живой",
+    "<font color='#af6025'>[G1]</font> <font color='#f00'>Exile_newbie:</font> как торговать вообще??",
+    "<font color='#af6025'>[G1]</font> <font color='#88f'>VeteranExile:</font> в 3.13 было лучше",
+    "<font color='#af6025'>[G1]</font> <font color='#eee'>Poebota:</font> подписывайтесь на стрим 👀",
 ];
+const _usedQuotes = new Set();
+function getRandomQuote() {
+    let available = chatQuotes.map((_, i) => i).filter(i => !_usedQuotes.has(i));
+    if(available.length === 0) { _usedQuotes.clear(); available = chatQuotes.map((_, i) => i); }
+    const idx = available[Math.floor(Math.random() * available.length)];
+    _usedQuotes.add(idx);
+    return chatQuotes[idx];
+}
 
 function getRank(score) {
-    if (score < 1) return "Статус: Голыш";
-    if (score < 30) return "Статус: Фармер";
-    if (score < 10) return "Статус: РМТ-барон";
-    if (score < 500) return "Статус: Владелец Зеркала";
-    if (score < 1000) return "Статус: Любимчик Криса";
-    return "Статус: Anton Pathofexilebota";
+    const div = score / 175;
+    if (div < 0.006) return "Статус: Голыш";
+    if (div < 0.03)  return "Статус: Актовичок";
+    if (div < 0.1)   return "Статус: Зачищатель карт";
+    if (div < 0.35)  return "Статус: Спидраннер";
+    if (div < 0.85)  return "Статус: Торговец хаосами";
+    if (div < 1.7)   return "Статус: Владелец Дивайна";
+    if (div < 300)   return "Статус: Любимчик Криса Уилсона";
+    if (div < 500)   return "Статус: Владелец Мейджблада";
+    return "Статус: Владелец Зеркала";
 }
+
+const _ac = new (window.AudioContext || window.webkitAudioContext)();
+// Лимитер громкости
+const _masterGain = _ac.createGain();
+const _compressor = _ac.createDynamicsCompressor();
+_compressor.threshold.value = -18;
+_compressor.ratio.value = 8;
+_masterGain.gain.value = 0.9;
+_compressor.connect(_masterGain); _masterGain.connect(_ac.destination);
+function _out() { return _compressor; }
 
 function playLootSound(val) {
     try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.frequency.setValueAtTime(val > 10 ? 950 : 440, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.6);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+        const t = _ac.currentTime;
+        if (val >= 120) {
+            // Divine — высокий двойной дзынь
+            [880, 1320].forEach((freq, i) => {
+                const o = _ac.createOscillator(), g = _ac.createGain();
+                o.type = 'sine'; o.frequency.setValueAtTime(freq, t + i*0.07);
+                o.frequency.exponentialRampToValueAtTime(freq * 1.15, t + i*0.07 + 0.15);
+                g.gain.setValueAtTime(0, t + i*0.07);
+                g.gain.linearRampToValueAtTime(0.18, t + i*0.07 + 0.02);
+                g.gain.exponentialRampToValueAtTime(0.0001, t + i*0.07 + 0.9);
+                o.connect(g); g.connect(_out());
+                o.start(t + i*0.07); o.stop(t + i*0.07 + 0.9);
+            });
+        } else if (val >= 15) {
+            // Exalted — чистый пинг
+            const o = _ac.createOscillator(), g = _ac.createGain();
+            o.type = 'sine'; o.frequency.setValueAtTime(660, t);
+            o.frequency.exponentialRampToValueAtTime(720, t + 0.1);
+            g.gain.setValueAtTime(0.15, t);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+            o.connect(g); g.connect(_out());
+            o.start(t); o.stop(t + 0.7);
+        } else {
+            // Chaos — тупой щелчок + тон
+            const o = _ac.createOscillator(), g = _ac.createGain();
+            const noise = _ac.createOscillator(), ng = _ac.createGain();
+            o.type = 'triangle'; o.frequency.setValueAtTime(380, t);
+            o.frequency.exponentialRampToValueAtTime(260, t + 0.12);
+            g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+            noise.type = 'sawtooth'; noise.frequency.setValueAtTime(120, t);
+            ng.gain.setValueAtTime(0.05, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+            o.connect(g); g.connect(_out());
+            noise.connect(ng); ng.connect(_out());
+            o.start(t); o.stop(t + 0.25); noise.start(t); noise.stop(t + 0.08);
+        }
+    } catch(e) {}
+}
+
+function playHitSound() {
+    try {
+        const t = _ac.currentTime;
+        const o = _ac.createOscillator(), g = _ac.createGain();
+        o.type = 'sawtooth'; o.frequency.setValueAtTime(180, t);
+        o.frequency.exponentialRampToValueAtTime(80, t + 0.1);
+        g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+        o.connect(g); g.connect(_out()); o.start(t); o.stop(t + 0.15);
+    } catch(e) {}
+}
+
+function playDmgSound() {
+    try {
+        const t = _ac.currentTime;
+        const o = _ac.createOscillator(), g = _ac.createGain();
+        o.type = 'sawtooth'; o.frequency.setValueAtTime(120, t);
+        o.frequency.exponentialRampToValueAtTime(60, t + 0.18);
+        g.gain.setValueAtTime(0.13, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+        o.connect(g); g.connect(_out()); o.start(t); o.stop(t + 0.2);
     } catch(e) {}
 }
 
@@ -130,6 +364,7 @@ function start(cls) {
     state.player = { x: canvas.width/2, y: canvas.height/2 };
     document.getElementById('menu').style.display = 'none';
     document.getElementById('btn-logout').style.display = 'block';
+    document.getElementById('latency-widget').style.display = 'flex';
     document.getElementById('global-chat').style.display = 'flex';
     if(cls === 'necro') minions.push({ x: state.player.x, y: state.player.y, name: "Elefanto" });
     loop(0);
@@ -144,21 +379,15 @@ function addChatMsg(customMsg) {
     const chat = document.getElementById('global-chat');
     const msg = document.createElement('div');
     msg.className = 'chat-msg';
-    msg.innerHTML = customMsg || chatQuotes[Math.floor(Math.random()*chatQuotes.length)];
+    msg.innerHTML = customMsg || getRandomQuote();
     chat.prepend(msg);
-    if(chat.childNodes.length > 6) chat.removeChild(chat.lastChild);
+    if(chat.childNodes.length > 7) chat.removeChild(chat.lastChild);
 }
 
 function update(t) {
     if(!state.running) return;
-    let now = Date.now();
-    let elapsed = now - state.startTime;
-    
-    // Агрессивный скейлинг сложности
+    let now = Date.now(), elapsed = now - state.startTime;
     state.difficulty = 1 + (elapsed / 45000); 
-    // Рост шанса спавна: каждые 15 сек шанс растет. Антон не выживет!
-    let spawnChance = state.spawnBase + (elapsed / 300000); 
-    
     if(Math.random() < 0.005) addChatMsg();
 
     if(elapsed > 5000 && now - state.lastDelve > 12000) {
@@ -175,7 +404,11 @@ function update(t) {
 
     if(t - state.lastAtk > (state.class === 'pf' ? 220 : 950)) {
         if(state.class === 'champ' && target) {
-            projs.push({x: state.player.x, y: state.player.y, ang: Math.atan2(target.y-state.player.y, target.x-state.player.x), type: 'sunder', life: 25, scale: 1});
+            const ang = Math.atan2(target.y-state.player.y, target.x-state.player.x);
+            // Три волны с задержкой — расходятся от игрока
+            [0, 8, 16].forEach(delay => {
+                projs.push({ x: state.player.x, y: state.player.y, ang, type: 'sunder', life: 22 - delay, maxLife: 22, radius: 50, innerRadius: 30, delay });
+            });
             state.lastAtk = t;
         }
         if(state.class === 'pf' && target) { brands.push({target: target, life: 60}); state.lastAtk = t; }
@@ -188,37 +421,101 @@ function update(t) {
 
     brands.forEach((b, i) => {
         if(!enemies.includes(b.target) || b.life-- <= 0) {
-            projs.push({x: b.target.x, y: b.target.y, type: 'explosion', life: 10});
-            enemies.forEach(e => { if(Math.hypot(e.x-b.target.x, e.y-b.target.y) < 70) e.hp -= 1.6; });
+            const ex = b.target ? b.target.x : b.x, ey = b.target ? b.target.y : b.y;
+            projs.push({x: ex, y: ey, type: 'explosion', life: 10});
+            enemies.forEach(e => { if(Math.hypot(e.x-ex, e.y-ey) < 90) e.hp -= 1.6; });
             brands.splice(i, 1);
-        } else b.target.hp -= 0.05;
+        } else {
+            // Пульс каждые 15 тиков бьёт по площади вокруг цели
+            b.pulse = (b.pulse || 0) + 1;
+            if(b.pulse % 15 === 0) {
+                enemies.forEach(e => { if(Math.hypot(e.x-b.target.x, e.y-b.target.y) < 75) e.hp -= 0.4; });
+                projs.push({x: b.target.x, y: b.target.y, type: 'pulse', life: 8});
+            }
+            b.target.hp -= 0.02;
+        }
     });
 
-    if(Math.random() < spawnChance) {
+    if(Math.random() < state.spawnBase + (elapsed / 300000)) {
         let a = Math.random()*Math.PI*2, r = Math.random();
-        let e = { x: state.player.x + Math.cos(a)*750, y: state.player.y + Math.sin(a)*750, hp: 5*state.difficulty, dmg: 0.4*state.difficulty, rarity: 'white', speed: 2.2, color: '#353' };
-        if(r < 0.015) { e.hp *= 4.5; e.color = '#ff0'; e.aura = 160; e.rarity = 'yellow'; e.name = rareNames[Math.floor(Math.random()*rareNames.length)]; }
-        else if(r < 0.12) { e.hp *= 1.8; e.color = '#88f'; e.rarity = 'blue'; }
+        let mobType = mobTypes[Math.floor(Math.random()*mobTypes.length)];
+        let e = { x: state.player.x + Math.cos(a)*750, y: state.player.y + Math.sin(a)*750, hp: 5*state.difficulty, dmg: 0.4*state.difficulty, rarity: 'white', speed: 2.2, color: '#353', mobType };
+        if(r < 0.015) { e.hp *= 4.5; e.maxHp = e.hp; e.color = '#ff0'; e.aura = 160; e.rarity = 'yellow'; e.name = rareNames[Math.floor(Math.random()*rareNames.length)]; }
+        else if(r < 0.12) { e.hp *= 1.8; e.maxHp = e.hp; e.color = '#88f'; e.rarity = 'blue'; }
         enemies.push(e);
+    }
+    // Таймер
+    const secs = Math.floor(elapsed / 1000);
+    const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+    const ss = String(secs % 60).padStart(2, '0');
+    document.getElementById('timer').innerText = `${mm}:${ss}`;
+
+    // Босс — первый через 30с, потом каждые 60с
+    if(elapsed > 30000 && now - state.lastBoss > 60000) {
+        let a = Math.random()*Math.PI*2;
+        let mobType = mobTypes[Math.floor(Math.random()*mobTypes.length)];
+        enemies.push({
+            x: state.player.x + Math.cos(a)*800, y: state.player.y + Math.sin(a)*800,
+            hp: 80*state.difficulty, maxHp: 80*state.difficulty,
+            dmg: 1.2*state.difficulty, rarity: 'boss', speed: 1.6,
+            color: '#ff6600', aura: 200, mobType,
+            name: bossNames[Math.floor(Math.random()*bossNames.length)]
+        });
+        state.lastBoss = now;
+        addChatMsg(`<font color='#ff6600'>⚠ ${enemies[enemies.length-1].name} появился!</font>`);
     }
 
     enemies.forEach((e, i) => {
-        let b = 1; enemies.forEach(o => { if(o.aura && Math.hypot(e.x-o.x, e.y-o.y) < o.aura) b = 1.65; });
+        let b = 1; enemies.forEach(o => { if(o.aura && Math.hypot(e.x-o.x, e.y-o.y) < o.aura) b = 1.3; });
         let ed = Math.hypot(state.player.x-e.x, state.player.y-e.y);
         e.x += (state.player.x-e.x)/ed * e.speed * b; e.y += (state.player.y-e.y)/ed * e.speed * b;
-        
-        if(ed < 22) { 
-            // Урон сначала по ES, потом по ХП
-            if (state.es > 0) state.es -= e.dmg; else state.hp -= e.dmg; 
+        if(ed < 22) {
+            if (state.es > 0) state.es -= e.dmg; else state.hp -= e.dmg;
+            if(Math.random() < 0.3) playDmgSound();
+            // Брызги крови
+            for(let i = 0; i < 4; i++) {
+                const ang = Math.random()*Math.PI*2, spd = 1.5 + Math.random()*3;
+                bloodParticles.push({ x: state.player.x, y: state.player.y, vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd, life: 18 + Math.random()*12, maxLife: 30 });
+            }
         }
-        
         if(e.hp <= 0) {
+            playHitSound();
+            state.kills++;
+            document.getElementById('kills').innerText = state.kills;
+            // Брызги от врага
+            for(let i = 0; i < 6; i++) {
+                const ang = Math.random()*Math.PI*2, spd = 2 + Math.random()*4;
+                bloodParticles.push({ x: e.x, y: e.y, vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd, life: 20 + Math.random()*15, maxLife: 35, enemy: true });
+            }
             const chance = Math.random();
             let drop = null;
-            if(chance < 0.003) drop = {name: 'Divine Orb', val: 200, color: '#0ff'};
-            else if(chance < 0.009) drop = {name: 'Exalted Orb', val: 15, color: '#edc412'};
-            else if(chance < 0.045) drop = {name: 'Chaos Orb', val: 1, color: '#edc412'};
-            else if(chance < 0.13) drop = {name: 'Orb of Alchemy', val: 0.5, color: '#fff'};
+            // Общий шанс дропа 30%, внутри — взвешенная таблица валют
+            if(chance < 0.003) {
+                // Редкий дроп — Divine или Exalted
+                drop = Math.random() < 0.3
+                    ? {name: 'Divine Orb',       val: 175,  color: '#0ff'}
+                    : {name: 'Exalted Orb',       val: 12,   color: '#edc412'};
+            } else if(chance < 0.012) {
+                // Среднередкий
+                const r = Math.random();
+                if     (r < 0.25) drop = {name: 'Orb of Annulment',    val: 16,   color: '#c8a'};
+                else if(r < 0.50) drop = {name: 'Chaos Orb',           val: 1,    color: '#e06030'};
+                else if(r < 0.70) drop = {name: 'Vaal Orb',            val: 1.0,  color: '#c00'};
+                else if(r < 0.85) drop = {name: 'Stacked Deck',        val: 1.7,  color: '#fa0'};
+                else               drop = {name: 'Orb of Regret',      val: 1.2,  color: '#88f'};
+            } else if(chance < 0.20) {
+                // Обычный дроп
+                const r = Math.random();
+                if     (r < 0.15) drop = {name: 'Orb of Unmaking',       val: 1.5,  color: '#f80'};
+                else if(r < 0.28) drop = {name: "Gemcutter's Prism",     val: 1,    color: '#0f8'};
+                else if(r < 0.40) drop = {name: 'Orb of Scouring',       val: 0.9,  color: '#aaa'};
+                else if(r < 0.55) drop = {name: 'Orb of Fusing',         val: 0.2,  color: '#f44'};
+                else if(r < 0.68) drop = {name: 'Orb of Alteration',     val: 0.25, color: '#88f'};
+                else if(r < 0.78) drop = {name: "Cartographer's Chisel", val: 0.3,  color: '#fa0'};
+                else if(r < 0.88) drop = {name: 'Chromatic Orb',         val: 0.15, color: '#f84'};
+                else if(r < 0.95) drop = {name: "Jeweller's Orb",        val: 0.1,  color: '#8df'};
+                else               drop = {name: 'Orb of Transmutation',  val: 0.025,color: '#aaf'};
+            }
             if(drop) {
                 const id = Math.random(); loots.push({x: e.x, y: e.y, val: drop.val, id});
                 const d = document.createElement('div'); d.id = 'l-'+id; d.className = 'loot-item';
@@ -231,7 +528,21 @@ function update(t) {
     });
 
     projs.forEach((p, i) => {
-        if(p.type === 'sunder') { p.x += Math.cos(p.ang)*6.5; p.y += Math.sin(p.ang)*6.5; p.scale += 0.16; enemies.forEach(e => { if(Math.hypot(e.x-p.x, e.y-p.y) < 48*p.scale) e.hp -= 0.68; }); }
+        if(p.type === 'sunder') {
+            if((p.delay || 0) > 0) { p.delay--; }
+            else {
+                p.radius += 9;
+                p.innerRadius = Math.max(0, p.radius - 55);
+                const coneAngle = 0.55;
+                enemies.forEach(e => {
+                    const dist = Math.hypot(e.x - p.x, e.y - p.y);
+                    const angleTo = Math.atan2(e.y - p.y, e.x - p.x);
+                    const diff = Math.abs(((angleTo - p.ang) + Math.PI*3) % (Math.PI*2) - Math.PI);
+                    if(dist > p.innerRadius && dist < p.radius + 10 && diff < coneAngle) e.hp -= 0.9;
+                });
+            }
+        }
+        if(p.type === 'explosion') { /* handled elsewhere */ }
         if(p.life-- <= 0) projs.splice(i, 1);
     });
 
@@ -241,27 +552,229 @@ function update(t) {
         document.getElementById('l-'+l.id)?.remove(); loots.splice(i, 1);
     }});
 
-    // Реген щита (ES)
+    // Частицы крови
+    for(let i = bloodParticles.length-1; i >= 0; i--) {
+        const p = bloodParticles[i];
+        p.x += p.vx; p.y += p.vy; p.vx *= 0.88; p.vy *= 0.88; p.life--;
+        if(p.life <= 0) bloodParticles.splice(i, 1);
+    }
+
     if(state.es < 80) state.es += 0.08;
-    
-    // UI Update
-    document.getElementById('life-fill').style.height = state.hp + '%';
-    document.getElementById('es-fill').style.height = (state.es/80*100) + '%';
-    
-    if(state.hp <= 0) { state.running = false; document.getElementById('death-screen').style.display = 'flex'; document.getElementById('final-score').innerText = "Wealth: " + state.score.toFixed(1) + " C"; }
+    if(state.hp < 100) state.hp += 0.08;
+    document.getElementById('life-fill').style.height = Math.max(0, state.hp) + '%';
+    document.getElementById('es-fill').style.height = Math.max(0, (state.es / 80 * 100)) + '%';
+    document.getElementById('mana-fill').style.height = '100%';
+    if(state.hp <= 0) {
+        state.running = false;
+        const elapsed = Date.now() - state.startTime;
+        const secs = Math.floor(elapsed / 1000);
+        const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+        const ss = String(secs % 60).padStart(2, '0');
+        const divs = state.score / 175;
+        const hours = elapsed / 3600000;
+        const dph = hours > 0 ? (divs / hours).toFixed(1) : '0';
+        const classNames = { champ: 'Champion', necro: 'Necromancer', pf: 'Pathfinder' };
+        document.getElementById('death-class').innerText = classNames[state.class] || state.class;
+        document.getElementById('death-wealth').innerText = `Wealth: ${state.score.toFixed(1)} C (${divs.toFixed(2)} div)`;
+        document.getElementById('final-time').innerText = `${mm}:${ss}`;
+        document.getElementById('final-kills').innerText = state.kills;
+        document.getElementById('final-dph').innerText = dph;
+        // Vignette → показываем экран с задержкой
+        document.getElementById('vignette').classList.add('dying');
+        setTimeout(() => { document.getElementById('death-screen').style.display = 'flex'; }, 800);
+    }
 }
 
 function draw() {
     ctx.fillStyle = '#050505'; ctx.fillRect(0,0,canvas.width, canvas.height);
+
+    // Скроллящийся грид
+    const gSize = 60;
+    const offX = state.player.x % gSize, offY = state.player.y % gSize;
+    ctx.strokeStyle = 'rgba(255,255,255,0.02)'; ctx.lineWidth = 1;
+    for(let x = -offX; x < canvas.width + gSize; x += gSize) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
+    for(let y = -offY; y < canvas.height + gSize; y += gSize) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
+
+    // Декорации фона с тайлингом
+    const cx = canvas.width/2, cy = canvas.height/2;
+    const px = state.player.x, py = state.player.y;
+    // Тайлим мир — рисуем соседние тайлы чтобы покрыть экран
+    for(let tx = -1; tx <= 1; tx++) for(let ty = -1; ty <= 1; ty++) {
+        const tOffX = tx * WORLD_TILE, tOffY = ty * WORLD_TILE;
+        decorations.forEach(d => {
+            const sx = cx + (d.wx + tOffX - px);
+            const sy = cy + (d.wy + tOffY - py);
+            if(sx < -60 || sx > canvas.width+60 || sy < -60 || sy > canvas.height+60) return;
+            ctx.save();
+            ctx.translate(sx, sy);
+            ctx.rotate(d.angle);
+            if(d.type === 'rock') {
+                ctx.fillStyle = ['#181818','#1c1c1c','#202020'][Math.floor(d.seed*3)];
+                ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, d.size, d.size*0.6, 0, 0, Math.PI*2);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = 'rgba(255,255,255,0.03)';
+                ctx.beginPath(); ctx.ellipse(-d.size*0.25, -d.size*0.2, d.size*0.35, d.size*0.18, -0.5, 0, Math.PI*2); ctx.fill();
+            } else if(d.type === 'bones') {
+                ctx.strokeStyle = '#2d2820'; ctx.lineWidth = d.size*0.22;
+                ctx.lineCap = 'round';
+                // Кость — две палки крест-накрест
+                ctx.beginPath(); ctx.moveTo(-d.size, 0); ctx.lineTo(d.size, 0); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(-d.size*0.5, -d.size*0.5); ctx.lineTo(d.size*0.5, d.size*0.5); ctx.stroke();
+                // Концы костей
+                ctx.fillStyle = '#2a2520';
+                [[-d.size,0],[d.size,0],[-d.size*0.5,-d.size*0.5],[d.size*0.5,d.size*0.5]].forEach(([bx,by]) => {
+                    ctx.beginPath(); ctx.arc(bx, by, d.size*0.18, 0, Math.PI*2); ctx.fill();
+                });
+            } else if(d.type === 'column') {
+                const h = d.size * 2.2, w = d.size * 0.55;
+                ctx.fillStyle = '#1a1a1a'; ctx.strokeStyle = '#282828'; ctx.lineWidth = 1;
+                // Основа
+                ctx.fillRect(-w*0.7, h*0.3, w*1.4, h*0.15); ctx.strokeRect(-w*0.7, h*0.3, w*1.4, h*0.15);
+                // Тело
+                ctx.fillRect(-w*0.5, -h*0.35, w, h*0.65); ctx.strokeRect(-w*0.5, -h*0.35, w, h*0.65);
+                // Слом сверху
+                ctx.fillStyle = '#141414';
+                ctx.beginPath(); ctx.moveTo(-w*0.5, -h*0.35); ctx.lineTo(0, -h*0.5); ctx.lineTo(w*0.3, -h*0.28); ctx.lineTo(w*0.5, -h*0.35); ctx.closePath(); ctx.fill(); ctx.stroke();
+                // Тень
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.beginPath(); ctx.ellipse(w*0.3, h*0.42, w*0.9, w*0.3, 0, 0, Math.PI*2); ctx.fill();
+            } else if(d.type === 'crystal') {
+                const glow = 0.4 + d.seed*0.4;
+                ctx.shadowBlur = 8; ctx.shadowColor = `rgba(60,100,200,${glow})`;
+                ctx.fillStyle = `rgba(40,70,160,${glow*0.7})`;
+                ctx.strokeStyle = `rgba(100,150,255,${glow})`;
+                ctx.lineWidth = 1;
+                // Кристалл — несколько граней
+                const pts = [0,-d.size*1.4, d.size*0.45,-d.size*0.3, d.size*0.3,d.size*0.6, -d.size*0.3,d.size*0.6, -d.size*0.45,-d.size*0.3];
+                ctx.beginPath(); ctx.moveTo(pts[0],pts[1]);
+                for(let i=2;i<pts.length;i+=2) ctx.lineTo(pts[i],pts[i+1]);
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+            ctx.restore();
+        });
+    }
+
+    // Брызги крови
+    bloodParticles.forEach(p => {
+        const alpha = p.life / p.maxLife;
+        ctx.fillStyle = p.enemy ? `rgba(200,20,20,${alpha*0.85})` : `rgba(200,20,20,${alpha*0.85})`;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 2.5 * alpha + 0.5, 0, Math.PI*2); ctx.fill();
+    });
     enemies.forEach(e => {
-        if(e.aura) { ctx.strokeStyle = 'rgba(255,0,0,0.3)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, e.aura, 0, Math.PI*2); ctx.stroke(); }
-        ctx.fillStyle = e.color; ctx.beginPath(); ctx.arc(e.x, e.y, 16, 0, Math.PI*2); ctx.fill();
-        if(e.rarity !== 'white') { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); }
-        if(e.name) { ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center'; ctx.fillText(e.name, e.x, e.y - 22); }
+        const r = e.rarity;
+        // Цвета в стиле PoE: белые — грязно-серые, синие — синие, жёлтые — золотые, боссы — оранжевые
+        const baseColor = r === 'boss' ? '#cc5500' : r === 'yellow' ? '#c8a800' : r === 'blue' ? '#4466cc' : '#5a4a3a';
+        const glowColor = r === 'boss' ? '#ff4400' : r === 'yellow' ? '#ffaa00' : r === 'blue' ? '#4466ff' : 'none';
+        const size = r === 'boss' ? 28 : 16;
+
+        // Аура
+        if(e.aura) {
+            ctx.strokeStyle = r === 'boss' ? 'rgba(255,80,0,0.25)' : 'rgba(200,160,0,0.2)';
+            ctx.lineWidth = r === 'boss' ? 3 : 2;
+            ctx.beginPath(); ctx.arc(e.x, e.y, e.aura, 0, Math.PI*2); ctx.stroke();
+        }
+
+        ctx.save();
+        ctx.translate(e.x, e.y);
+
+        if(r === 'boss') { ctx.shadowBlur = 20; ctx.shadowColor = '#ff4400'; }
+        else if(r === 'yellow') { ctx.shadowBlur = 8; ctx.shadowColor = '#cc8800'; }
+        else if(r === 'blue') { ctx.shadowBlur = 5; ctx.shadowColor = '#3355bb'; }
+
+        const t = e.mobType || 'zombie';
+        ctx.fillStyle = baseColor;
+        // Обводка по редкости как в PoE
+        ctx.strokeStyle = r === 'boss' ? '#ff6600' : r === 'yellow' ? '#c8a800' : r === 'blue' ? '#4488ff' : '#3a2a1a';
+        ctx.lineWidth = r === 'boss' ? 2.5 : r === 'white' ? 1 : 1.5;
+
+        if(t === 'zombie') {
+            ctx.beginPath(); ctx.arc(0, 0, size, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            ctx.strokeStyle = baseColor; ctx.lineWidth = size*0.28; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(-size*0.7, -size*0.3); ctx.lineTo(-size*1.3, size*0.2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(size*0.7, -size*0.3); ctx.lineTo(size*1.3, size*0.2); ctx.stroke();
+        } else if(t === 'skeleton') {
+            ctx.beginPath(); ctx.arc(0, -size*0.1, size*0.85, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#1a1008';
+            ctx.beginPath(); ctx.arc(-size*0.3, -size*0.15, size*0.22, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(size*0.3, -size*0.15, size*0.22, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = baseColor; ctx.lineWidth = size*0.18;
+            ctx.beginPath(); ctx.moveTo(-size*0.5, size*0.5); ctx.lineTo(0, size*0.75); ctx.lineTo(size*0.5, size*0.5); ctx.stroke();
+        } else if(t === 'beast') {
+            ctx.beginPath(); ctx.ellipse(0, size*0.1, size*1.1, size*0.75, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.ellipse(-size*0.55, -size*0.55, size*0.22, size*0.35, -0.4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(size*0.55, -size*0.55, size*0.22, size*0.35, 0.4, 0, Math.PI*2); ctx.fill();
+        } else if(t === 'specter') {
+            ctx.globalAlpha = 0.82;
+            ctx.beginPath();
+            ctx.moveTo(0, -size*1.1);
+            ctx.bezierCurveTo(size*0.9, -size*0.3, size*0.9, size*0.5, 0, size*0.8);
+            ctx.bezierCurveTo(-size*0.9, size*0.5, -size*0.9, -size*0.3, 0, -size*1.1);
+            ctx.fill(); ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = 'rgba(255,255,255,0.85)';
+            ctx.beginPath(); ctx.arc(-size*0.28, -size*0.1, size*0.18, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(size*0.28, -size*0.1, size*0.18, 0, Math.PI*2); ctx.fill();
+        }
+
+        ctx.shadowBlur = 0;
+
+        if(e.name) {
+            ctx.fillStyle = r === 'boss' ? '#ff9944' : r === 'yellow' ? '#e8c840' : '#ccc';
+            ctx.font = r === 'boss' ? 'bold 13px Arial' : 'bold 11px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(e.name, 0, -size - 8);
+        }
+
+        // HP бар только у босса
+        if(r === 'boss' && e.maxHp) {
+            const bw = size*3, bh = 5, bx = -bw/2, by = size + 6;
+            ctx.fillStyle = '#300'; ctx.fillRect(bx, by, bw, bh);
+            ctx.fillStyle = '#cc5500';
+            ctx.fillRect(bx, by, bw * Math.max(0, e.hp/e.maxHp), bh);
+            ctx.strokeStyle = '#555'; ctx.lineWidth = 0.5; ctx.strokeRect(bx, by, bw, bh);
+        }
+
+        ctx.restore();
     });
     projs.forEach(p => {
-        ctx.fillStyle = p.type === 'sunder' ? `rgba(139, 69, 19, ${p.life/25})` : "rgba(255, 255, 100, 0.4)";
-        ctx.beginPath(); if(p.type === 'sunder') { ctx.arc(p.x, p.y, 45*p.scale, p.ang-0.6, p.ang+0.6); ctx.lineTo(p.x, p.y); } else ctx.arc(p.x, p.y, 80*(1-p.life/10), 0, Math.PI*2); ctx.fill();
+        if(p.type === 'sunder' && (p.delay || 0) <= 0) {
+            const alpha = (p.life / p.maxLife) * 0.8;
+            const coneAngle = 0.55;
+            const inner = p.innerRadius || 0;
+            // Заливка конуса между внутренним и внешним радиусом
+            ctx.fillStyle = `rgba(139, 80, 10, ${alpha * 0.35})`;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, p.ang - coneAngle, p.ang + coneAngle);
+            if(inner > 0) ctx.arc(p.x, p.y, inner, p.ang + coneAngle, p.ang - coneAngle, true);
+            else ctx.lineTo(p.x, p.y);
+            ctx.closePath();
+            ctx.fill();
+            // Передняя дуга
+            ctx.strokeStyle = `rgba(220, 130, 20, ${alpha})`;
+            ctx.lineWidth = 12 * (p.life / p.maxLife) + 4;
+            ctx.shadowBlur = 12; ctx.shadowColor = '#c86400';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, p.ang - coneAngle, p.ang + coneAngle);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+        if(p.type === 'explosion') {
+            const progress = 1 - p.life/10;
+            ctx.fillStyle = `rgba(200, 180, 50, ${0.25 * (1 - progress)})`;
+            ctx.beginPath(); ctx.arc(p.x, p.y, 90 * progress, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = `rgba(255, 220, 80, ${0.5 * (1 - progress)})`;
+            ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x, p.y, 90 * progress, 0, Math.PI*2); ctx.stroke();
+        }
+        if(p.type === 'pulse') {
+            const progress = 1 - p.life/8;
+            ctx.strokeStyle = `rgba(255, 210, 60, ${0.75 * (1 - progress)})`;
+            ctx.lineWidth = 4; ctx.shadowBlur = 10; ctx.shadowColor = '#ffaa00';
+            ctx.beginPath(); ctx.arc(p.x, p.y, 75 * progress, 0, Math.PI*2); ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
     });
     brands.forEach(b => {
         ctx.fillStyle = '#ff0'; ctx.shadowBlur = 10; ctx.shadowColor = '#ff0';
@@ -272,7 +785,6 @@ function draw() {
         ctx.fillStyle = '#444'; ctx.beginPath(); ctx.arc(m.x, m.y, 28, 0, Math.PI*2); ctx.fill();
         ctx.fillStyle = '#eee'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.fillText(m.name, m.x, m.y - 38);
     });
-    // Draw PEKAFACE
     ctx.fillStyle = '#ff0'; ctx.beginPath(); ctx.arc(state.player.x, state.player.y, 18, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(state.player.x-6, state.player.y-4, 2.5, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(state.player.x+6, state.player.y-4, 2.5, 0, Math.PI*2); ctx.fill();
@@ -282,6 +794,98 @@ function draw() {
 window.onmousemove = e => { window.mx = e.clientX; window.my = e.clientY; };
 function loop(t) { if(state.running) { update(t); draw(); requestAnimationFrame(loop); } }
 window.onkeydown = e => { if(e.key === 'Escape') location.reload(); };
+
+// Анимация фона меню
+(function menuAnim() {
+    const mc = document.getElementById('menu-bg');
+    if(!mc) return;
+    mc.width = window.innerWidth; mc.height = window.innerHeight;
+    const mx = mc.getContext('2d');
+    const pts = Array.from({length: 60}, () => ({
+        x: Math.random()*mc.width, y: Math.random()*mc.height,
+        vx: (Math.random()-0.5)*0.4, vy: (Math.random()-0.5)*0.4,
+        r: Math.random()*2+0.5,
+        color: Math.random() < 0.3 ? '#af6025' : (Math.random() < 0.5 ? '#edc412' : '#666')
+    }));
+    function animLoop() {
+        if(document.getElementById('menu').style.display === 'none') return;
+        mx.clearRect(0,0,mc.width,mc.height);
+        pts.forEach(p => {
+            p.x += p.vx; p.y += p.vy;
+            if(p.x < 0) p.x = mc.width; if(p.x > mc.width) p.x = 0;
+            if(p.y < 0) p.y = mc.height; if(p.y > mc.height) p.y = 0;
+            mx.fillStyle = p.color; mx.globalAlpha = 0.5;
+            mx.beginPath(); mx.arc(p.x, p.y, p.r, 0, Math.PI*2); mx.fill();
+        });
+        // Линии между близкими частицами
+        mx.globalAlpha = 1;
+        pts.forEach((a, i) => pts.slice(i+1).forEach(b => {
+            const dist = Math.hypot(a.x-b.x, a.y-b.y);
+            if(dist < 100) {
+                mx.strokeStyle = `rgba(175,96,37,${0.12*(1-dist/100)})`;
+                mx.lineWidth = 0.5; mx.beginPath(); mx.moveTo(a.x,a.y); mx.lineTo(b.x,b.y); mx.stroke();
+            }
+        }));
+        requestAnimationFrame(animLoop);
+    }
+    animLoop();
+})();
+
+// Латенси-метр
+(function latencyMeter() {
+    const lc = document.getElementById('latency-canvas');
+    const lx = lc.getContext('2d');
+    const history = Array(60).fill(80);
+    let current = 80, target = 80, spikeTimer = 0;
+
+    function tick() {
+        if(document.getElementById('latency-widget').style.display === 'none') return;
+        current += (target - current) * 0.15;
+        current += (Math.random() - 0.5) * 8;
+        current = Math.max(60, Math.min(420, current));
+        spikeTimer--;
+        if(spikeTimer <= 0) {
+            target = Math.random() < 0.2 ? 200 + Math.random() * 200 : 70 + Math.random() * 60;
+            spikeTimer = 15 + Math.floor(Math.random() * 40);
+        }
+        history.push(Math.round(current));
+        if(history.length > 60) history.shift();
+
+        const ms = Math.round(current);
+        const msEl = document.getElementById('latency-ms');
+        if(msEl) {
+            msEl.innerText = ms + ' MS';
+            msEl.style.color = ms < 100 ? '#fff' : ms < 200 ? '#fa0' : '#f44';
+        }
+
+        const w = lc.width, h = lc.height;
+        const min = 60, max = 420, range = max - min;
+        lx.clearRect(0, 0, w, h);
+
+        const lineColor = ms < 100 ? 'rgba(255,255,255,0.85)' : ms < 200 ? 'rgba(255,170,0,0.85)' : 'rgba(255,60,60,0.85)';
+        lx.strokeStyle = lineColor;
+        lx.lineWidth = 1.5;
+        lx.shadowBlur = 4; lx.shadowColor = lineColor;
+        lx.beginPath();
+        history.forEach((v, i) => {
+            const x = (i / (history.length - 1)) * w;
+            const y = h - ((v - min) / range) * (h - 2) - 1;
+            i === 0 ? lx.moveTo(x, y) : lx.lineTo(x, y);
+        });
+        lx.stroke(); lx.shadowBlur = 0;
+
+        // Заливка под линией
+        lx.fillStyle = ms < 100 ? 'rgba(255,255,255,0.05)' : ms < 200 ? 'rgba(255,170,0,0.06)' : 'rgba(255,60,60,0.08)';
+        lx.lineTo(w, h); lx.lineTo(0, h); lx.closePath(); lx.fill();
+
+        // Базовая линия
+        lx.strokeStyle = 'rgba(255,255,255,0.12)';
+        lx.lineWidth = 1;
+        lx.beginPath(); lx.moveTo(0, h-1); lx.lineTo(w, h-1); lx.stroke();
+    }
+
+    setInterval(tick, 100);
+})();
 </script>
 </body>
 </html>
